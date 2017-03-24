@@ -14,9 +14,6 @@ branches:
     only:
         - master
 
-before_script:
-    - ./autogen.sh
-
 script:
     - ./autogen.sh
     - ./configure
@@ -27,7 +24,10 @@ env:
   global:
    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
    #   via the "travis encrypt" command using the project repo's public key
-   - secure: "i4IbqGQ3QKWoaKq6601Rw8NqERs6CRiZ/t72qZr4/KHd38McLesjfr6QGdB5hT3Tg7ChmplTX5iycEdDbbFzCKe6chyZBdvItGu9hIEII+tIQt77SxMkm/leRDxZsLqnJV95Bs7HcQdLt4XN41ZYuXPZiwV+w3wiFFKmmFo9P8a5lvL85MSAEApEAAZht4IkHX/j1bIq5dLsDQ0bgeGhi9zQSbL/Q1FjmgQkKKBa65DYFG/XyeyyX7gDiT/GmfO968JHbHSra+apWkphJAsWvaP9Wz53VkY5UtAf+IS0+DlDsjPY+elW4XkjSBK+QPJGwnXNoVXOg4pq0gzv9WcIfZvA8z50E2TAaB2uNQOJPGp6WVuJ6rVSrESVFieWZoMZjhTQ/Wl10pp3T+JWlzxYYFoDNDUg21gQnWF4h8BlAal2NVWVgBGZ/VRhXv/iClVlxZqb8vCYgLsW8WKmNKqIj3sOMnV5XUjdTSBD29nTcPI/3TOQyydIVnzr6Q6sOJ6tKadm97o5zyYpMR0twpMe/XxPcIcBqyxTccmY79ZhGWuIj+B6zWUyjbHO6hn1eSvgiHSEmKY54UFBxg5H7KWIiKThKOae4Pca7w1ZJHFrAMFgU4oYOS0BOo5f8lU4jiGL7UAONo2EGiPodlknEFCqD6xMZ8A/RgJ0Stg/nxYqz5U="
+   - secure: "TyaiTrFc7l74JdOmq6FXdWAIzR6ZD/EVbZvYIBW5gvYNYNSoyLO0mmMWS32UOFxN+gyzQlbV5AiudzQI7yjCu0QvEw4O6dlF9gT74dsCdB0/kaoVGVUI3t6ukBoH3aGNo1Oa56kbtGxUox8lc4CtxgvuM5yPCcbRnfpJqf0JuqLZprcf/Gax7U8Xut9DKJeGzdTTgtswjCFnSPJ4iAbcTdDA5kxHqlXeIVNLE7ZMLwvMx59sGDb7M/lRDhQz9yKfy+XKE9OGVjYuG5XRMNRpMwl+h6BfwO3TwGY2qghw5RO7kQXlKzny0c14YKzcjp+FhV6gS5RjU4a+hEuedK9LHqkVOJxh8edDccQuj5muoGZw7ul9JEiqWIPD2KPRJzOgJV/GgTJViAt2NcvfwVmUe4cl1jjS5wAO06jyaIpWEZ19MiIeilew1fsAF8eahJTnSn13bPqASKWxIkWp5kDPgoCSpEB8yWqCml0vGOnYiucx4AV1NzZnmBxvtGhEVz4hNM3Jlx2i8sLPO404m1wohMEvwcE9/k5vtpf3dL53TcS3KoOSTy688A2PM2kQmt1JrYH62qaVOWXwRtatUUzJPT1RgUf29D1M38MtDs3nwf1dK2isxN/lHfeKY4kAIiu9DJMuMlNakhMbBqlEMjdrBsEJoCOMQq4JNdgcqz9PRIc="
+
+before_install:
+      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 addons:
   coverity_scan:
@@ -36,5 +36,5 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: izhoukk@gmail.com
     build_command_prepend: "./autogen.sh; ./configure; make clean"
-    build_command:   "make -j 4"
+    build_command:   "make"
     branch_pattern: coverity_scan
