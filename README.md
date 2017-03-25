@@ -5,4 +5,6 @@
 </a>
 
 # libmqtt
+
+[![Join the chat at https://gitter.im/zhoukk-libmqtt/Lobby](https://badges.gitter.im/zhoukk-libmqtt/Lobby.svg)](https://gitter.im/zhoukk-libmqtt/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 mqtt client library writen in c support mqttv31 and mqttv311
