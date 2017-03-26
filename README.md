@@ -4,6 +4,7 @@
        src="https://scan.coverity.com/projects/12172/badge.svg"/>
 </a>
 [![Join the chat at https://gitter.im/zhoukk-libmqtt/Lobby](https://badges.gitter.im/zhoukk-libmqtt/Lobby.svg)](https://gitter.im/zhoukk-libmqtt/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 # libmqtt
 
