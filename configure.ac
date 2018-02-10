@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([libmqtt], [0.1.0], [https://github.com/zhoukk/libmqtt/issues])
-AC_SUBST(LIBMQTT_ABI, [0:1:0])
+AC_INIT([libmqtt], [0.2.0], [https://github.com/zhoukk/libmqtt/issues])
+AC_SUBST(LIBMQTT_ABI, [0:2:0])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([libmqtt.h])
@@ -33,7 +33,7 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([gethostname gettimeofday memset select socket strchr strdup strerror strndup strtol])
+AC_CHECK_FUNCS([gettimeofday memset select socket strchr strdup strerror strndup strtol])
 
 AC_CHECK_PROG(PKG_CONFIG, pkg-config, yes)
 AM_CONDITIONAL([HAVE_PKG_CONFIG], [test "x$PKG_CONFIG" != "x"])

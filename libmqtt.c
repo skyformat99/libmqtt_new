@@ -27,19 +27,12 @@
 #define MQTT_IMPLEMENTATION
 #include "mqtt.h"
 
-#include "lib/ae.h"
-#include "lib/anet.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <errno.h>
-#include <unistd.h>
 #include <inttypes.h>
-#include <sys/socket.h>
 
-#define LIBMQTT_READ_BUFF   4096
 #define LIBMQTT_LOG_BUFF    4096
 
 enum libmqtt_state {
@@ -97,47 +90,18 @@ struct libmqtt {
     void (* log)(void *ud, const char *str);
     char logbuf[LIBMQTT_LOG_BUFF];
 
-    aeEventLoop *el;
-    char *host;
-    int port;
-    int fd;
-    long long id;
+    void *io;
+    libmqtt__io_write io_write;
 };
 
-static int __connect(struct libmqtt *mqtt);
 
 static int
 __write(struct libmqtt *mqtt, const char *data, int size) {
-    if (-1 == write(mqtt->fd, data, size)) {
+    if (-1 == mqtt->io_write(mqtt->io, data, size)) {
         return -1;
     }
     mqtt->t.send = mqtt->t.now;
     return 0;
-}
-
-static void
-__read(aeEventLoop *el, int fd, void *privdata, int mask) {
-    struct libmqtt *mqtt;
-    int nread;
-    char buff[LIBMQTT_READ_BUFF];
-    struct mqtt_b b;
-
-    mqtt = (struct libmqtt *)privdata;
-    nread = read(fd, buff, sizeof(buff));
-    if (nread == -1 && errno == EAGAIN) {
-        return;
-    }
-    b.s = buff;
-    b.n = nread;
-    if (nread <= 0 || mqtt__parse(&mqtt->p, mqtt, &b)) {
-        aeDeleteFileEvent(el, fd, AE_READABLE);
-        aeDeleteTimeEvent(el, mqtt->id);
-        close(fd);
-        mqtt->fd = 0;
-        if (nread == 0 || __connect(mqtt)) {
-            aeStop(el);
-        }
-    }
 }
 
 static void
@@ -284,72 +248,6 @@ __check_retry(struct libmqtt *mqtt) {
     }
 }
 
-static int
-__update(aeEventLoop *el, long long id, void *privdata) {
-    struct libmqtt *mqtt;
-
-    mqtt = (struct libmqtt *)privdata;
-    mqtt->t.now += 1;
-
-    if (mqtt->t.ping > 0 && (mqtt->t.now - mqtt->t.ping) > mqtt->c.keep_alive) {
-        if (mqtt->fd > 0) {
-            shutdown(mqtt->fd, SHUT_WR);
-        }
-        return 0;
-    }
-
-    if (mqtt->t.ping == 0 && (mqtt->t.now - mqtt->t.send) >= mqtt->c.keep_alive) {
-        char b[] = MQTT_PINGREQ;
-        if (0 == __write(mqtt, b, sizeof b)) {
-            mqtt->t.ping = mqtt->t.now;
-            __log(mqtt, "sending PINGREQ");
-        }
-    }
-    __check_retry(mqtt);
-    return 1000;
-}
-
-static int
-__connect(struct libmqtt *mqtt) {
-    int fd;
-    long long id;
-
-    if (ANET_ERR == (fd = anetTcpConnect(0, mqtt->host, mqtt->port))) {
-        goto e1;
-    }
-    anetNonBlock(0, fd);
-    anetEnableTcpNoDelay(0, fd);
-    anetTcpKeepAlive(0, fd);
-    if (AE_ERR == aeCreateFileEvent(mqtt->el, fd, AE_READABLE, __read, mqtt)) {
-        goto e2;
-    }
-    if (mqtt->c.keep_alive > 0) {
-        if (AE_ERR == (id = aeCreateTimeEvent(mqtt->el, 1000, __update, mqtt, 0))) {
-            goto e3;
-        }
-        mqtt->id = id;
-    }
-    mqtt->fd = fd;
-    return 0;
-
-e3:
-    aeDeleteFileEvent(mqtt->el, fd, AE_READABLE);
-e2:
-    close(fd);
-e1:
-    return -1;
-}
-
-static void
-__generate_client_id(struct mqtt_b *b) {
-    char id[1024] = {0};
-    char hostname[256] = {0};
-
-    gethostname(hostname, sizeof hostname);
-    b->n = snprintf(id, sizeof id, "libmqtt/%d-%s", getpid(), hostname);
-    b->s = strdup(id);
-}
-
 static uint16_t
 __generate_packet_id(struct libmqtt *mqtt) {
     uint16_t id;
@@ -363,13 +261,14 @@ __generate_packet_id(struct libmqtt *mqtt) {
 const char *libmqtt__strerror(int rc) {
     static const char *__libmqtt_error_strings[] = {
         "success",
-        "null pointer access",
-        "memory allocation error",
-        "error mqtt qos",
-        "error mqtt protocol version",
-        "tcp connection error",
-        "tcp write error",
-        "max topic/qos per subscribe or unsubscribe",
+        "mqtt null pointer access",
+        "mqtt emory allocation error",
+        "mqtt qos error",
+        "mqtt protocol version error",
+        "mqtt io write error",
+        "mqtt packet parse error",
+        "mqtt timeout error",
+        "mqtt max topic/qos per subscribe or unsubscribe",
     };
 
     if (-rc <= 0 || -rc > sizeof(__libmqtt_error_strings)/sizeof(char *))
@@ -631,29 +530,24 @@ void libmqtt__debug(struct libmqtt *mqtt, void (* log)(void *ud, const char *str
 }
 
 int libmqtt__create(struct libmqtt **mqtt, const char *client_id, void *ud, struct libmqtt_cb *cb) {
-    aeEventLoop *el;
     int rc;
 
     *mqtt = 0;
-    if ((el = aeCreateEventLoop(128)) == 0) {
-        rc = LIBMQTT_ERROR_MALLOC;
+    if (!client_id || strlen(client_id) == 0) {
+        rc = LIBMQTT_ERROR_NULL;
         goto e1;
     }
 
     if ((*mqtt = malloc(sizeof(struct libmqtt))) == 0) {
         rc = LIBMQTT_ERROR_MALLOC;
-        goto e2;
+        goto e1;
     }
     memset(*mqtt, 0, sizeof(struct libmqtt));
 
-    if (client_id) {
-        mqtt_b_dup(&(*mqtt)->c.client_id, client_id);
-    } else {
-        __generate_client_id(&(*mqtt)->c.client_id);
-    }
+    mqtt_b_dup(&(*mqtt)->c.client_id, client_id);
     if (mqtt_b_empty(&(*mqtt)->c.client_id)) {
         rc = LIBMQTT_ERROR_MALLOC;
-        goto e3;
+        goto e2;
     }
 
     mqtt__parse_init(&(*mqtt)->p);
@@ -669,7 +563,6 @@ int libmqtt__create(struct libmqtt **mqtt, const char *client_id, void *ud, stru
 
     (*mqtt)->ud = ud;
     (*mqtt)->cb = *cb;
-    (*mqtt)->el = el;
     (*mqtt)->t.ping = 0;
     (*mqtt)->t.send = 0;
     (*mqtt)->c.keep_alive = LIBMQTT_DEF_KEEPALIVE;
@@ -678,10 +571,8 @@ int libmqtt__create(struct libmqtt **mqtt, const char *client_id, void *ud, stru
 
     return LIBMQTT_SUCCESS;
 
-e3:
-    free(*mqtt);
 e2:
-    aeDeleteEventLoop(el);
+    free(*mqtt);
 e1:
     return rc;
 }
@@ -690,14 +581,12 @@ int libmqtt__destroy(struct libmqtt *mqtt) {
     if (!mqtt) {
         return LIBMQTT_ERROR_NULL;
     }
-    aeDeleteEventLoop(mqtt->el);
 
     mqtt_b_free(&mqtt->c.client_id);
     mqtt_b_free(&mqtt->c.username);
     mqtt_b_free(&mqtt->c.password);
     mqtt_b_free(&mqtt->c.will_topic);
     mqtt_b_free(&mqtt->c.will_payload);
-    free(mqtt->host);
     free(mqtt);
     return LIBMQTT_SUCCESS;
 }
@@ -770,7 +659,7 @@ int libmqtt__will(struct libmqtt *mqtt, int retain, enum mqtt_qos qos, const cha
     return LIBMQTT_SUCCESS;
 }
 
-int libmqtt__connect(struct libmqtt *mqtt, const char *host, int port) {
+int libmqtt__connect(struct libmqtt *mqtt, void *io, libmqtt__io_write write) {
     struct mqtt_packet p;
     struct mqtt_b b;
     int rc;
@@ -778,11 +667,8 @@ int libmqtt__connect(struct libmqtt *mqtt, const char *host, int port) {
     if (!mqtt) {
         return LIBMQTT_ERROR_NULL;
     }
-    mqtt->host = strdup(host);
-    mqtt->port = port;
-    if (!mqtt->host) {
-        return LIBMQTT_ERROR_MALLOC;
-    }
+    mqtt->io = io;
+    mqtt->io_write = write;
 
     memset(&p, 0, sizeof p);
     p.h.type = CONNECT;
@@ -794,10 +680,6 @@ int libmqtt__connect(struct libmqtt *mqtt, const char *host, int port) {
         return LIBMQTT_ERROR_MALLOC;
     }
 
-    if (__connect(mqtt)) {
-        mqtt_b_free(&b);
-        return LIBMQTT_ERROR_CONNECT;
-    }
     rc = __write(mqtt, b.s, b.n);
     mqtt_b_free(&b);
     if (rc) {
@@ -947,24 +829,45 @@ int libmqtt__publish(struct libmqtt *mqtt, uint16_t *id, const char *topic,
 
 int libmqtt__disconnect(struct libmqtt *mqtt) {
     char b[] = MQTT_DISCONNECT;
-    int rc;
 
     if (!mqtt) {
         return LIBMQTT_ERROR_NULL;
     }
-    rc = __write(mqtt, b, sizeof b);
-    shutdown(mqtt->fd, SHUT_WR);
-    if (rc) {
+    if (__write(mqtt, b, sizeof b)) {
         return LIBMQTT_ERROR_WRITE;
     }
     __log(mqtt, "sending DISCONNECT");
     return LIBMQTT_SUCCESS;
 }
 
-int libmqtt__run(struct libmqtt *mqtt) {
-    if (!mqtt) {
-        return LIBMQTT_ERROR_NULL;
+int libmqtt__read(struct libmqtt *mqtt, const char *data, int size) {
+    struct mqtt_b b;
+
+    b.s = (char *)data;
+    b.n = size;
+    if (mqtt__parse(&mqtt->p, mqtt, &b)) {
+        return LIBMQTT_ERROR_PARSE;
     }
-    aeMain(mqtt->el);
+    return LIBMQTT_SUCCESS;
+}
+
+int libmqtt__update(struct libmqtt *mqtt) {
+    mqtt->t.now += 1;
+
+    if (mqtt->c.keep_alive > 0) {
+        if (mqtt->t.ping > 0 && (mqtt->t.now - mqtt->t.ping) > mqtt->c.keep_alive) {
+        return LIBMQTT_ERROR_TIMEOUT;
+        }
+
+        if (mqtt->t.ping == 0 && (mqtt->t.now - mqtt->t.send) >= mqtt->c.keep_alive) {
+            char b[] = MQTT_PINGREQ;
+            if (0 == __write(mqtt, b, sizeof b)) {
+                mqtt->t.ping = mqtt->t.now;
+                __log(mqtt, "sending PINGREQ");
+            }
+        }
+    }
+
+    __check_retry(mqtt);
     return LIBMQTT_SUCCESS;
 }

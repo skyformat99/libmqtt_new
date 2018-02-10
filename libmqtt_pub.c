@@ -24,7 +24,15 @@
 
 #include "libmqtt.h"
 
+#include "lib/ae.h"
+#include "lib/anet.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 
 enum {
     MSGMODE_NONE,
@@ -33,6 +41,13 @@ enum {
     MSGMODE_CMD,
     MSGMODE_NULL,
     MSGMODE_STDIN_FILE,
+};
+
+struct ae_io {
+    aeEventLoop *el;
+    int fd;
+    long long timer_id;
+    struct libmqtt *mqtt;
 };
 
 static char *host = 0;
@@ -66,7 +81,7 @@ static int will_length = 0;
 static void
 usage(void) {
     printf("libmqtt_pub is a simple mqtt client that will publish a message on a single topic and exit.\n");
-    printf("libmqtt_pub version %s running on libmqtt %d.%d.%d.\n\n", "0.0.0", 0, 0, 0);
+    printf("libmqtt_pub version %s running on libmqtt %d.%d.%d.\n\n", "0.0.0", 0, 2, 0);
     printf("Usage: libmqtt_pub [-h host] [-k keepalive] [-p port] [-q qos] [-r] {-f file | -l | -n | -m message} -t topic\n");
     printf("                     [-i id] [-I id_prefix]\n");
     printf("                     [-d] [--quiet]\n");
@@ -456,6 +471,46 @@ __log(void *ud, const char *str) {
     fprintf(stdout, "%s\n", str);
 }
 
+static void
+__read(aeEventLoop *el, int fd, void *privdata, int mask) {
+    struct ae_io *io;
+    int nread;
+    char buff[4096];
+
+    io = (struct ae_io *)privdata;
+    nread = read(fd, buff, sizeof(buff));
+    if (nread == -1 && errno == EAGAIN) {
+        return;
+    }
+    if (nread <= 0 || LIBMQTT_SUCCESS != libmqtt__read(io->mqtt, buff, nread)) {
+        aeDeleteFileEvent(el, fd, AE_READABLE);
+        aeDeleteTimeEvent(el, io->timer_id);
+        close(fd);
+        if (nread == 0) {
+            aeStop(el);
+        }
+    }
+}
+
+static int
+__update(aeEventLoop *el, long long id, void *privdata) {
+    struct ae_io *io;
+
+    io = (struct ae_io *)privdata;
+
+    if (LIBMQTT_SUCCESS != libmqtt__update(io->mqtt)) {
+        return 0;
+    }
+    return 1000;
+}
+
+static int
+__write(void *io, const char *data, int size) {
+    struct ae_io *sio = (struct ae_io *)io;
+    return write(sio->fd, data, size);
+}
+
+
 int
 main(int argc, char *argv[]) {
     int rc;
@@ -515,13 +570,40 @@ main(int argc, char *argv[]) {
     if (username) {
         if (!rc) rc = libmqtt__auth(mqtt, username, password);
     }
-    if (!rc) rc = libmqtt__connect(mqtt, host, port);
-    if (!rc) rc = libmqtt__run(mqtt);
+
+    struct ae_io io;
+    char err[ANET_ERR_LEN];
+
+    io.mqtt = mqtt;
+    io.el = aeCreateEventLoop(128);
+    if (ANET_ERR == (io.fd = anetTcpConnect(err, host, port))) {
+        fprintf(stderr, "anet: %s\n", err);
+        goto e;
+    }
+    anetNonBlock(0, io.fd);
+    anetEnableTcpNoDelay(0, io.fd);
+    anetTcpKeepAlive(0, io.fd);
+    if (AE_ERR == aeCreateFileEvent(io.el, io.fd, AE_READABLE, __read, &io)) {
+        fprintf(stderr, "aeCreateFileEvent error\n");
+        goto e;
+    }
+    if (AE_ERR == (io.timer_id = aeCreateTimeEvent(io.el, 1000, __update, &io, 0))) {
+        fprintf(stderr, "aeCreateTimeEvent error\n");
+        goto e;
+    }
+
+    if (!rc) rc = libmqtt__connect(mqtt, (void *)&io, __write);
+
+    aeMain(io.el);
+
+e:
     libmqtt__destroy(mqtt);
     if (rc != LIBMQTT_SUCCESS) {
         if (!quiet) fprintf(stderr, "%s\n", libmqtt__strerror(rc));
     }
 
+    aeDeleteEventLoop(io.el);
+    close(io.fd);
     free(host);
     free(topic);
     if (client_id)

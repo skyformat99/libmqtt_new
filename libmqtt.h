@@ -45,13 +45,14 @@ extern "C" {
 #define LIBMQTT_SUCCESS             0       /* success. */
 
 /* define errors. */
-#define LIBMQTT_ERROR_NULL          -1      /* null pointer access. */
-#define LIBMQTT_ERROR_MALLOC        -2		/* memory allocation error. */
-#define LIBMQTT_ERROR_QOS           -3      /* error mqtt qos. */
-#define LIBMQTT_ERROR_VSN           -4      /* error mqtt protocol version. */
-#define LIBMQTT_ERROR_CONNECT       -5      /* tcp connection error. */
-#define LIBMQTT_ERROR_WRITE         -6      /* tcp write error. */
-#define LIBMQTT_ERROR_MAXSUB        -7      /* max topic/qos per subscribe or unsubscribe. */
+#define LIBMQTT_ERROR_NULL          -1      /* mqtt null pointer access. */
+#define LIBMQTT_ERROR_MALLOC        -2		/* mqtt emory allocation error. */
+#define LIBMQTT_ERROR_QOS           -3      /* mqtt qos error. */
+#define LIBMQTT_ERROR_VSN           -4      /* mqtt protocol version error. */
+#define LIBMQTT_ERROR_WRITE         -5      /* mqtt io write error. */
+#define LIBMQTT_ERROR_PARSE			-6		/* mqtt packet parse error. */
+#define LIBMQTT_ERROR_TIMEOUT		-7		/* mqtt timeout error. */
+#define LIBMQTT_ERROR_MAXSUB        -8      /* mqtt max topic/qos per subscribe or unsubscribe. */
 
 /* default mqtt keep alive. */
 #define LIBMQTT_DEF_KEEPALIVE       30
@@ -61,6 +62,9 @@ extern "C" {
 
 /* libmqtt data structure. */
 struct libmqtt;
+
+/* libmqtt io write. */
+typedef int (*libmqtt__io_write)(void *io, const char *data, int size);
 
 /* libmqtt callbacks. */
 typedef void (*libmqtt__on_connack)(struct libmqtt *, void *ud, int ack_flags, enum mqtt_connack return_code);
@@ -92,12 +96,13 @@ extern LIBMQTT_API int libmqtt__clean_sess(struct libmqtt *mqtt, int clean_sess)
 extern LIBMQTT_API int libmqtt__version(struct libmqtt *mqtt, enum mqtt_vsn vsn);
 extern LIBMQTT_API int libmqtt__auth(struct libmqtt *mqtt, const char *username, const char *password);
 extern LIBMQTT_API int libmqtt__will(struct libmqtt *mqtt, int retain, enum mqtt_qos qos, const char *topic, const char *payload, int payload_len);
-extern LIBMQTT_API int libmqtt__connect(struct libmqtt *mqtt, const char *host, int port);
+extern LIBMQTT_API int libmqtt__connect(struct libmqtt *mqtt, void *io, libmqtt__io_write write);
 extern LIBMQTT_API int libmqtt__subscribe(struct libmqtt *mqtt, uint16_t *id, int count, const char *topic[], enum mqtt_qos qos[]);
 extern LIBMQTT_API int libmqtt__unsubscribe(struct libmqtt *mqtt, uint16_t *id, int count, const char *topic[]);
 extern LIBMQTT_API int libmqtt__publish(struct libmqtt *mqtt, uint16_t *id, const char *topic, enum mqtt_qos qos, int retain, const char *payload, int length);
 extern LIBMQTT_API int libmqtt__disconnect(struct libmqtt *mqtt);
-extern LIBMQTT_API int libmqtt__run(struct libmqtt *mqtt);
+extern LIBMQTT_API int libmqtt__read(struct libmqtt *mqtt, const char *data, int size);
+extern LIBMQTT_API int libmqtt__update(struct libmqtt *mqtt);
 
 #ifdef __cplusplus
 }
