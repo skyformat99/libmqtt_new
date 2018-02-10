@@ -434,18 +434,6 @@ main(int argc, char *argv[]) {
     if (!host) {
         host = strdup("127.0.0.1");
     }
-    if (!client_id_prefix) {
-        client_id_prefix = strdup("libmqtt_sub_");
-    }
-
-    if (client_id_prefix) {
-        client_id = malloc(strlen(client_id_prefix)+10);
-        if (!client_id) {
-            if (!quiet) fprintf(stderr, "out of memory\n");
-            return 0;
-        }
-        snprintf(client_id, strlen(client_id_prefix)+10, "%s%d", client_id_prefix, getpid());
-    }
 
     if (clean_session == 0 && (client_id_prefix || !client_id)){
         if (!quiet) fprintf(stderr, "Error: You must provide a client id if you are using the -c option.\n");
@@ -454,6 +442,18 @@ main(int argc, char *argv[]) {
     if (topic_count == 0) {
         if (!quiet) fprintf(stderr, "Error: You must specify a topic to subscribe to.\n");
         return 0;
+    }
+
+    if (!client_id) {
+        if (!client_id_prefix) {
+            client_id_prefix = strdup("libmqtt_sub_");
+        }
+        client_id = malloc(strlen(client_id_prefix)+10);
+        if (!client_id) {
+            if (!quiet) fprintf(stderr, "out of memory\n");
+            return 0;
+        }
+        snprintf(client_id, strlen(client_id_prefix)+10, "%s%d", client_id_prefix, getpid());
     }
 
     rc = libmqtt__create(&mqtt, client_id, 0, &cb);
