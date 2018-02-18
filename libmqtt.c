@@ -410,11 +410,11 @@ __on_publish(void *ud, struct mqtt_packet *p) {
     switch (p->h.qos) {
         case MQTT_QOS_0:
             if (mqtt->cb.publish)
-                mqtt->cb.publish(mqtt, mqtt->ud, topic, p->h.qos, p->h.retain, p->payload.s, p->payload.n);
+                mqtt->cb.publish(mqtt, mqtt->ud, p->v.publish.packet_id, topic, p->h.qos, p->h.retain, p->payload.s, p->payload.n);
             return 0;
         case MQTT_QOS_1:
             if (mqtt->cb.publish)
-                mqtt->cb.publish(mqtt, mqtt->ud, topic, p->h.qos, p->h.retain, p->payload.s, p->payload.n);
+                mqtt->cb.publish(mqtt, mqtt->ud, p->v.publish.packet_id, topic, p->h.qos, p->h.retain, p->payload.s, p->payload.n);
             if (__write(mqtt, puback, sizeof puback)) {
                 return __insert_pub(mqtt, p, LIBMQTT_DIR_IN, LIBMQTT_ST_SEND_PUBACK);
             }
@@ -484,7 +484,7 @@ __on_pubrel(void *ud, struct mqtt_packet *p) {
     if (pub) {
         char pubcomp[] = MQTT_PUBCOMP(packet_id);
         if (mqtt->cb.publish)
-            mqtt->cb.publish(mqtt, mqtt->ud, pub->p.topic, pub->p.qos, pub->p.retain, pub->p.payload, pub->p.length);
+            mqtt->cb.publish(mqtt, mqtt->ud, packet_id, pub->p.topic, pub->p.qos, pub->p.retain, pub->p.payload, pub->p.length);
         if (__write(mqtt, pubcomp, sizeof pubcomp)) {
             __update_pub(mqtt, pub, LIBMQTT_ST_SEND_PUBCOMP);
         } else {

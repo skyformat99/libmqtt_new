@@ -64,14 +64,14 @@ extern "C" {
 struct libmqtt;
 
 /* libmqtt io write. */
-typedef int (*libmqtt__io_write)(void *io, const char *data, int size);
+typedef int (* libmqtt__io_write)(void *io, const char *data, int size);
 
 /* libmqtt callbacks. */
-typedef void (*libmqtt__on_connack)(struct libmqtt *, void *ud, int ack_flags, enum mqtt_connack return_code);
-typedef void (*libmqtt__on_suback)(struct libmqtt *, void *ud, uint16_t id, int count, enum mqtt_qos *qos);
-typedef void (*libmqtt__on_unsuback)(struct libmqtt *, void *ud, uint16_t id);
-typedef void (*libmqtt__on_puback)(struct libmqtt *, void *ud, uint16_t id);
-typedef void (*libmqtt__on_publish)(struct libmqtt *, void *ud, const char *topic, enum mqtt_qos qos, int retain, const char *payload, int length);
+typedef void (* libmqtt__on_connack)(struct libmqtt *, void *ud, int ack_flags, enum mqtt_connack return_code);
+typedef void (* libmqtt__on_suback)(struct libmqtt *, void *ud, uint16_t id, int count, enum mqtt_qos *qos);
+typedef void (* libmqtt__on_unsuback)(struct libmqtt *, void *ud, uint16_t id);
+typedef void (* libmqtt__on_puback)(struct libmqtt *, void *ud, uint16_t id);
+typedef void (* libmqtt__on_publish)(struct libmqtt *, void *ud, uint16_t id, const char *topic, enum mqtt_qos qos, int retain, const char *payload, int length);
 
 /* libmqtt callback structure. */
 struct libmqtt_cb {
@@ -91,16 +91,20 @@ extern LIBMQTT_API void libmqtt__debug(struct libmqtt *mqtt, void (* log)(void *
 /* generic libmqtt functions. */
 extern LIBMQTT_API int libmqtt__create(struct libmqtt **mqtt, const char *client_id, void *ud, struct libmqtt_cb *cb);
 extern LIBMQTT_API int libmqtt__destroy(struct libmqtt *mqtt);
+
 extern LIBMQTT_API int libmqtt__keep_alive(struct libmqtt *mqtt, uint16_t keep_alive);
 extern LIBMQTT_API int libmqtt__clean_sess(struct libmqtt *mqtt, int clean_sess);
 extern LIBMQTT_API int libmqtt__version(struct libmqtt *mqtt, enum mqtt_vsn vsn);
 extern LIBMQTT_API int libmqtt__auth(struct libmqtt *mqtt, const char *username, const char *password);
 extern LIBMQTT_API int libmqtt__will(struct libmqtt *mqtt, int retain, enum mqtt_qos qos, const char *topic, const char *payload, int payload_len);
+
 extern LIBMQTT_API int libmqtt__connect(struct libmqtt *mqtt, void *io, libmqtt__io_write write);
+extern LIBMQTT_API int libmqtt__disconnect(struct libmqtt *mqtt);
+
 extern LIBMQTT_API int libmqtt__subscribe(struct libmqtt *mqtt, uint16_t *id, int count, const char *topic[], enum mqtt_qos qos[]);
 extern LIBMQTT_API int libmqtt__unsubscribe(struct libmqtt *mqtt, uint16_t *id, int count, const char *topic[]);
 extern LIBMQTT_API int libmqtt__publish(struct libmqtt *mqtt, uint16_t *id, const char *topic, enum mqtt_qos qos, int retain, const char *payload, int length);
-extern LIBMQTT_API int libmqtt__disconnect(struct libmqtt *mqtt);
+
 extern LIBMQTT_API int libmqtt__read(struct libmqtt *mqtt, const char *data, int size);
 extern LIBMQTT_API int libmqtt__update(struct libmqtt *mqtt);
 
