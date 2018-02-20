@@ -365,6 +365,10 @@ __log(void *ud, const char *str) {
     fprintf(stdout, "%s\n", str);
 }
 
+static void
+__close(aeEventLoop *el, struct ae_io *io) {
+    aeStop(el);
+}
 
 int
 main(int argc, char *argv[]) {
@@ -418,7 +422,7 @@ main(int argc, char *argv[]) {
         if (!rc) rc = libmqtt__auth(mqtt, username, password);
     }
 
-    io = ae_io__connect(el, mqtt, host, port, 0);
+    io = ae_io__connect(el, mqtt, host, port, __close);
     if (!io) {
         return 0;
     }
