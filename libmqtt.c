@@ -725,7 +725,7 @@ int libmqtt__subscribe(struct libmqtt *mqtt, uint16_t *id, int count, const char
         return LIBMQTT_ERROR_WRITE;
     }
     for (i = 0; i < count; i++) {
-        __log(mqtt, "Sending SUBSCRIBE (id: %"PRIu16", Topic: %s, QoS: %d)",
+        __log(mqtt, "Sending SUBSCRIBE (id: %"PRIu16", topic: %s, qos: %d)",
               p.v.subscribe.packet_id, topic[i], qos[i]);
     }
     return LIBMQTT_SUCCESS;
@@ -764,7 +764,7 @@ int libmqtt__unsubscribe(struct libmqtt *mqtt, uint16_t *id, int count, const ch
         return LIBMQTT_ERROR_WRITE;
     }
     for (i = 0; i < count; i++) {
-        __log(mqtt, "Sending UNSUBSCRIBE (id: %"PRIu16", Topic: %s)",
+        __log(mqtt, "Sending UNSUBSCRIBE (id: %"PRIu16", topic: %s)",
               p.v.unsubscribe.packet_id, topic[i]);
     }
     return LIBMQTT_SUCCESS;
@@ -788,9 +788,7 @@ int libmqtt__publish(struct libmqtt *mqtt, uint16_t *id, const char *topic,
     p.h.dup = 0;
     p.h.retain = retain;
     p.h.qos = qos;
-    if (qos > MQTT_QOS_0) {
-        p.v.publish.packet_id = __generate_packet_id(mqtt);
-    }
+    p.v.publish.packet_id = __generate_packet_id(mqtt);
     p.v.publish.topic_name.s = (char *)topic;
     p.v.publish.topic_name.n = strlen(topic);
     p.payload.s = (char *)payload;
@@ -800,7 +798,7 @@ int libmqtt__publish(struct libmqtt *mqtt, uint16_t *id, const char *topic,
         return LIBMQTT_ERROR_MALLOC;
     }
 
-    if (qos > MQTT_QOS_0 && id) {
+    if (id) {
         *id = p.v.publish.packet_id;
     }
     rc = __write(mqtt, b.s, b.n);
@@ -810,6 +808,8 @@ int libmqtt__publish(struct libmqtt *mqtt, uint16_t *id, const char *topic,
               0, qos, retain, p.v.publish.packet_id, topic, length);
     }
     if (!rc && qos == MQTT_QOS_0) {
+        if (mqtt->cb.puback)
+            mqtt->cb.puback(mqtt, mqtt->ud, p.v.publish.packet_id);
         return LIBMQTT_SUCCESS;
     }
     if (rc) {

@@ -25,60 +25,32 @@
 #ifndef _AE_IO_H_
 #define _AE_IO_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef AE_IO_API
-#define AE_IO_API extern
-#endif // AE_IO_API
-
 #include "libmqtt.h"
-
-typedef void (* io_disconnect)(void *io);
-
-AE_IO_API void *io_create(struct libmqtt *mqtt);
-
-AE_IO_API void io_destroy(void *io);
-
-AE_IO_API int io_connect(void *io, const char *host, int port, io_disconnect disconnect);
-
-AE_IO_API int io_write(void *io, const char *data, int size);
-
-AE_IO_API void io_close(void *io);
-
-AE_IO_API void io_loop(void *io);
-
-AE_IO_API void io_stop(void *io);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _AE_IO_H_
-
-
-#ifdef AE_IO_IMPLEMENTATION
-
 
 #include "lib/ae.h"
 #include "lib/anet.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
 
 struct ae_io {
-    aeEventLoop *el;
-    struct libmqtt *mqtt;
     int fd;
     long long timer_id;
-    io_disconnect disconnect;
+    struct libmqtt *mqtt;
+    void (* on_close)(aeEventLoop *el, struct ae_io *);
 };
 
+
+static void
+ae_io__close(aeEventLoop *el, struct ae_io *io) {
+    if (io->fd) {
+        aeDeleteFileEvent(el, io->fd, AE_READABLE);
+        close(io->fd);
+    }
+    if (io->timer_id)
+        aeDeleteTimeEvent(el, io->timer_id);
+    free(io);
+}
 
 static void
 __read(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -87,17 +59,15 @@ __read(aeEventLoop *el, int fd, void *privdata, int mask) {
     char buff[4096];
 
     io = (struct ae_io *)privdata;
+
     nread = read(fd, buff, sizeof(buff));
     if (nread == -1 && errno == EAGAIN) {
         return;
     }
     if (nread <= 0 || LIBMQTT_SUCCESS != libmqtt__read(io->mqtt, buff, nread)) {
-        io_close(io);
-        if (io->disconnect) {
-            io->disconnect(io);
-        } else {
-            io_stop(io);
-        }
+        if (io->on_close)
+            io->on_close(el, io);
+        ae_io__close(el, io);
     }
 }
 
@@ -113,91 +83,56 @@ __update(aeEventLoop *el, long long id, void *privdata) {
     return 1000;
 }
 
-AE_IO_API void *
-io_create(struct libmqtt *mqtt) {
+
+static struct ae_io *
+ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void (* on_close)(aeEventLoop *el, struct ae_io *)) {
     struct ae_io *io;
-
-    io = (struct ae_io *)malloc(sizeof *io);
-    memset(io, 0, sizeof *io);
-    io->el = aeCreateEventLoop(128);
-    io->mqtt = mqtt;
-    return (void *)io;
-}
-
-AE_IO_API void
-io_destroy(void *io) {
-    struct ae_io *aeio;
-
-    aeio = (struct ae_io *)io;
-    aeDeleteEventLoop(aeio->el);
-    free(aeio);
-}
-
-AE_IO_API int
-io_connect(void *io, const char *host, int port, io_disconnect disconnect) {
-    struct ae_io *aeio;
     int fd;
-    int timer_id;
+    long long timer_id;
     char err[ANET_ERR_LEN];
 
-    aeio = (struct ae_io *)io;
-    fd = anetTcpConnect(err, (char *)host, port);
+    fd = anetTcpConnect(err, host, port);
     if (ANET_ERR == fd) {
         fprintf(stderr, "anetTcpConnect: %s\n", err);
-        return -1;
+        goto e1;
     }
     anetNonBlock(0, fd);
     anetEnableTcpNoDelay(0, fd);
     anetTcpKeepAlive(0, fd);
-    if (AE_ERR == aeCreateFileEvent(aeio->el, fd, AE_READABLE, __read, io)) {
+    if (AE_ERR == aeCreateFileEvent(el, fd, AE_READABLE, __read, io)) {
         fprintf(stderr, "aeCreateFileEvent: error\n");
-        return -1;
-    }
-    timer_id = aeCreateTimeEvent(aeio->el, 1000, __update, io, 0);
-    if (AE_ERR == timer_id) {
-        fprintf(stderr, "aeCreateTimeEvent: error\n");
-        return -1;
+        goto e2;
     }
 
-    aeio->fd = fd;
-    aeio->timer_id = timer_id;
-    aeio->disconnect = disconnect;
+    timer_id = aeCreateTimeEvent(el, 1000, __update, io, 0);
+    if (AE_ERR == timer_id) {
+        fprintf(stderr, "aeCreateTimeEvent: error\n");
+        goto e3;
+    }
+
+    io = (struct ae_io *)malloc(sizeof *io);
+    memset(io, 0, sizeof *io);
+    io->fd = fd;
+    io->timer_id = timer_id;
+    io->mqtt = mqtt;
+    io->on_close = on_close;
+    return io;
+
+e3:
+    aeDeleteFileEvent(el, fd, AE_READABLE);
+e2:
+    close(fd);
+e1:
     return 0;
 }
 
-AE_IO_API int
-io_write(void *io, const char *data, int size) {
-    struct ae_io *aeio;
+static int
+ae_io__write(void *p, const char *data, int size) {
+    struct ae_io *io;
 
-    aeio = (struct ae_io *)io;
-    return write(aeio->fd, data, size);
+    io = (struct ae_io *)p;
+
+    return write(io->fd, data, size);
 }
 
-AE_IO_API void
-io_close(void *io) {
-    struct ae_io *aeio;
-
-    aeio = (struct ae_io *)io;
-    aeDeleteFileEvent(aeio->el, aeio->fd, AE_READABLE);
-    aeDeleteTimeEvent(aeio->el, aeio->timer_id);
-    close(aeio->fd);
-    aeio->fd = 0;
-}
-
-AE_IO_API void
-io_loop(void *io) {
-    struct ae_io *aeio;
-
-    aeio = (struct ae_io *)io;
-    aeMain(aeio->el);
-}
-
-AE_IO_API void
-io_stop(void *io) {
-    struct ae_io *aeio;
-
-    aeio = (struct ae_io *)io;
-    aeStop(aeio->el);
-}
-
-#endif // AE_IO_IMPLEMENTATION
+#endif // _AE_IO_H_

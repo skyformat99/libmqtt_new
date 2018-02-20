@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-#define AE_IO_IMPLEMENTATION
 #include "ae_io.h"
+
 
 enum {
     MSGMODE_NONE,
@@ -460,11 +460,12 @@ int
 main(int argc, char *argv[]) {
     int rc;
     struct libmqtt *mqtt;
-    void *io;
     struct libmqtt_cb cb = {
         .connack = __connack,
         .puback = __puback,
     };
+    aeEventLoop *el;
+    struct ae_io *io;
 
     config(argc, argv);
     if (!host) {
@@ -505,6 +506,8 @@ main(int argc, char *argv[]) {
         snprintf(client_id, strlen(client_id_prefix)+10, "%s%d", client_id_prefix, getpid());
     }
 
+    el = aeCreateEventLoop(128);
+    
     rc = libmqtt__create(&mqtt, client_id, 0, &cb);
     if (!rc && debug == 1) libmqtt__debug(mqtt, __log);
     if (!rc) rc = libmqtt__version(mqtt, proto_ver);
@@ -517,19 +520,22 @@ main(int argc, char *argv[]) {
         if (!rc) rc = libmqtt__auth(mqtt, username, password);
     }
 
-    io = io_create(mqtt);
-    rc = io_connect(io, host, port, 0);
+    io = ae_io__connect(el, mqtt, host, port, 0);
+    if (!io) {
+        return 0;
+    }
 
-    if (!rc) rc = libmqtt__connect(mqtt, io, io_write);
-
-    io_loop(io);
-    
-    libmqtt__destroy(mqtt);
+    if (!rc) rc = libmqtt__connect(mqtt, io, ae_io__write);
     if (rc != LIBMQTT_SUCCESS) {
         if (!quiet) fprintf(stderr, "%s\n", libmqtt__strerror(rc));
     }
-    io_close(io);
-    io_destroy(io);
+
+    aeMain(el);
+    
+    libmqtt__destroy(mqtt);
+
+    ae_io__close(el, io);
+    aeDeleteEventLoop(el);
 
     free(host);
     free(topic);
