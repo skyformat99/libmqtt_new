@@ -37,7 +37,7 @@ struct ae_io {
     int fd;
     long long timer_id;
     struct libmqtt *mqtt;
-    void (* on_close)(aeEventLoop *el, struct ae_io *);
+    void (* disconnect)(aeEventLoop *el, struct ae_io *);
 };
 
 
@@ -65,9 +65,10 @@ __read(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
     }
     if (nread <= 0 || LIBMQTT_SUCCESS != libmqtt__read(io->mqtt, buff, nread)) {
-        if (io->on_close)
-            io->on_close(el, io);
-        ae_io__close(el, io);
+        if (io->disconnect)
+            io->disconnect(el, io);
+        else
+            ae_io__close(el, io);
     }
 }
 
@@ -85,7 +86,7 @@ __update(aeEventLoop *el, long long id, void *privdata) {
 
 
 static struct ae_io *
-ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void (* on_close)(aeEventLoop *el, struct ae_io *)) {
+ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void (* disconnect)(aeEventLoop *el, struct ae_io *)) {
     struct ae_io *io;
     int fd;
     long long timer_id;
@@ -117,7 +118,7 @@ ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void
     io->fd = fd;
     io->timer_id = timer_id;
     io->mqtt = mqtt;
-    io->on_close = on_close;
+    io->disconnect = disconnect;
     return io;
 
 e3:

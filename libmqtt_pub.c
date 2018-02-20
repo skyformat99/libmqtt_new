@@ -456,7 +456,8 @@ __log(void *ud, const char *str) {
 }
 
 static void
-__close(aeEventLoop *el, struct ae_io *io) {
+__disconnect(aeEventLoop *el, struct ae_io *io) {
+    ae_io__close(el, io);
     aeStop(el);
 }
 
@@ -525,7 +526,7 @@ main(int argc, char *argv[]) {
         if (!rc) rc = libmqtt__auth(mqtt, username, password);
     }
 
-    io = ae_io__connect(el, mqtt, host, port, __close);
+    io = ae_io__connect(el, mqtt, host, port, __disconnect);
     if (!io) {
         return 0;
     }
@@ -536,11 +537,9 @@ main(int argc, char *argv[]) {
     }
 
     aeMain(el);
-    
-    libmqtt__destroy(mqtt);
-
-    ae_io__close(el, io);
     aeDeleteEventLoop(el);
+
+    libmqtt__destroy(mqtt);
 
     free(host);
     free(topic);
