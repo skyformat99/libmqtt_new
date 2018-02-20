@@ -99,6 +99,10 @@ ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void
     anetNonBlock(0, fd);
     anetEnableTcpNoDelay(0, fd);
     anetTcpKeepAlive(0, fd);
+
+    io = (struct ae_io *)malloc(sizeof *io);
+    memset(io, 0, sizeof *io);
+
     if (AE_ERR == aeCreateFileEvent(el, fd, AE_READABLE, __read, io)) {
         fprintf(stderr, "aeCreateFileEvent: error\n");
         goto e2;
@@ -109,9 +113,7 @@ ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void
         fprintf(stderr, "aeCreateTimeEvent: error\n");
         goto e3;
     }
-
-    io = (struct ae_io *)malloc(sizeof *io);
-    memset(io, 0, sizeof *io);
+    
     io->fd = fd;
     io->timer_id = timer_id;
     io->mqtt = mqtt;
@@ -122,6 +124,7 @@ e3:
     aeDeleteFileEvent(el, fd, AE_READABLE);
 e2:
     close(fd);
+    free(io);
 e1:
     return 0;
 }
