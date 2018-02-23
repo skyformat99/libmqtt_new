@@ -244,7 +244,7 @@ __check_retry(struct libmqtt *mqtt) {
             }
         }
         if (pub)
-            *pp = (*pp)->next;
+            pp = &(*pp)->next;
     }
 }
 
