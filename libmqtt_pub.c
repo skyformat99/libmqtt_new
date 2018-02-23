@@ -416,8 +416,6 @@ do_publish(struct libmqtt *mqtt) {
                 return;
             }
             do_publish(mqtt);
-        } else {
-            libmqtt__disconnect(mqtt);
         }
     }
 }
