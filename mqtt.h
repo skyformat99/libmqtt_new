@@ -52,7 +52,7 @@ enum mqtt_vsn {
 
 #define MQTT_IS_VER(v) (v == MQTT_PROTO_V3 || v == MQTT_PROTO_V4)
 
-static const char *MQTT_PROTOCOL_NAMES[] = {
+static const char *MQTT_PROTOCOL_NAMES[] __attribute__((unused)) = {
     [MQTT_PROTO_V3] = "MQIsdp",
     [MQTT_PROTO_V4] = "MQTT",
 };
@@ -88,7 +88,7 @@ enum mqtt_p_type {
 
 #define MQTT_IS_TYPE(t) (t >= CONNECT && t <= DISCONNECT)
 
-static const char *MQTT_TYPE_NAMES[] = {
+static const char *MQTT_TYPE_NAMES[] __attribute__((unused)) = {
     [RESERVED]      = "RESERVED",
     [CONNECT]       = "CONNECT",
     [CONNACK]       = "CONNACK",
@@ -117,7 +117,7 @@ enum mqtt_connack {
 
 #define MQTT_IS_CONNACK(c) (c >= CONNACK_ACCEPTED && c <= CONNACK_REFUSED_NOT_AUTHORIZED)
 
-static const char *MQTT_CONNACK_NAMES[] = {
+static const char *MQTT_CONNACK_NAMES[] __attribute__((unused)) = {
     [CONNACK_ACCEPTED]                      = "CONNACK_ACCEPTED",
     [CONNACK_REFUSED_PROTOCOL_VERSION]      = "CONNACK_REFUSED_PROTOCOL_VERSION",
     [CONNACK_REFUSED_IDENTIFIER_REJECTED]   = "CONNACK_REFUSED_IDENTIFIER_REJECTED",
