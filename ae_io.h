@@ -53,7 +53,7 @@ ae_io__close(aeEventLoop *el, struct ae_io *io) {
 }
 
 static void
-__read(aeEventLoop *el, int fd, void *privdata, int mask) {
+ae_io__read(aeEventLoop *el, int fd, void *privdata, int mask) {
     struct ae_io *io;
     int nread;
     char buff[4096];
@@ -73,7 +73,7 @@ __read(aeEventLoop *el, int fd, void *privdata, int mask) {
 }
 
 static int
-__update(aeEventLoop *el, long long id, void *privdata) {
+ae_io__update(aeEventLoop *el, long long id, void *privdata) {
     struct ae_io *io;
 
     io = (struct ae_io *)privdata;
@@ -104,12 +104,12 @@ ae_io__connect(aeEventLoop *el, struct libmqtt *mqtt, char *host, int port, void
     io = (struct ae_io *)malloc(sizeof *io);
     memset(io, 0, sizeof *io);
 
-    if (AE_ERR == aeCreateFileEvent(el, fd, AE_READABLE, __read, io)) {
+    if (AE_ERR == aeCreateFileEvent(el, fd, AE_READABLE, ae_io__read, io)) {
         fprintf(stderr, "aeCreateFileEvent: error\n");
         goto e2;
     }
 
-    timer_id = aeCreateTimeEvent(el, 1000, __update, io, 0);
+    timer_id = aeCreateTimeEvent(el, 1000, ae_io__update, io, 0);
     if (AE_ERR == timer_id) {
         fprintf(stderr, "aeCreateTimeEvent: error\n");
         goto e3;
