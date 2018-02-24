@@ -43,11 +43,11 @@ struct ae_io {
 
 static void
 ae_io__close(aeEventLoop *el, struct ae_io *io) {
-    if (io->fd) {
+    if (AE_ERR != io->fd) {
         aeDeleteFileEvent(el, io->fd, AE_READABLE);
         close(io->fd);
     }
-    if (io->timer_id)
+    if (AE_ERR != io->timer_id)
         aeDeleteTimeEvent(el, io->timer_id);
     free(io);
 }

@@ -431,6 +431,7 @@ main(int argc, char *argv[]) {
     if (!rc) rc = libmqtt__connect(mqtt, io, ae_io__write);
     if (rc != LIBMQTT_SUCCESS) {
         if (!quiet) fprintf(stderr, "%s\n", libmqtt__strerror(rc));
+        return 0;
     }
 
     aeMain(el);
