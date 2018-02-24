@@ -57,8 +57,8 @@ extern "C" {
 /* default mqtt keep alive. */
 #define LIBMQTT_DEF_KEEPALIVE       30
 
-/* mqtt packet retry time. */
-#define LIBMQTT_TIME_RETRY          20
+/* default mqtt packet retry time. */
+#define LIBMQTT_DEF_TIMERETRY       20
 
 /* libmqtt data structure. */
 struct libmqtt;
@@ -92,6 +92,7 @@ extern LIBMQTT_API void libmqtt__debug(struct libmqtt *mqtt, void (* log)(void *
 extern LIBMQTT_API int libmqtt__create(struct libmqtt **mqtt, const char *client_id, void *ud, struct libmqtt_cb *cb);
 extern LIBMQTT_API int libmqtt__destroy(struct libmqtt *mqtt);
 
+extern LIBMQTT_API int libmqtt__time_retry(struct libmqtt *mqtt, int time_retry);
 extern LIBMQTT_API int libmqtt__keep_alive(struct libmqtt *mqtt, uint16_t keep_alive);
 extern LIBMQTT_API int libmqtt__clean_sess(struct libmqtt *mqtt, int clean_sess);
 extern LIBMQTT_API int libmqtt__version(struct libmqtt *mqtt, enum mqtt_vsn vsn);

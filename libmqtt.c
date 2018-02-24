@@ -79,6 +79,8 @@ struct libmqtt {
         int send;
     } t;
 
+    int time_retry;
+
     struct {
         struct libmqtt_pub *head;
         struct libmqtt_pub *tail;
@@ -126,7 +128,7 @@ __check_retry(struct libmqtt *mqtt) {
     while (*pp) {
         struct libmqtt_pub *pub;
         pub = *pp;
-        if (mqtt->t.now - pub->t > LIBMQTT_TIME_RETRY) {
+        if (mqtt->t.now - pub->t > mqtt->time_retry) {
             switch (pub->s) {
             case LIBMQTT_ST_SEND_PUBLUSH:
             case LIBMQTT_ST_WAIT_PUBACK:
@@ -565,6 +567,7 @@ int libmqtt__create(struct libmqtt **mqtt, const char *client_id, void *ud, stru
     (*mqtt)->cb = *cb;
     (*mqtt)->t.ping = 0;
     (*mqtt)->t.send = 0;
+    (*mqtt)->time_retry = LIBMQTT_DEF_TIMERETRY;
     (*mqtt)->c.keep_alive = LIBMQTT_DEF_KEEPALIVE;
     (*mqtt)->c.clean_sess = 1;
     (*mqtt)->c.proto_ver = MQTT_PROTO_V4;
@@ -588,6 +591,14 @@ int libmqtt__destroy(struct libmqtt *mqtt) {
     mqtt_b_free(&mqtt->c.will_topic);
     mqtt_b_free(&mqtt->c.will_payload);
     free(mqtt);
+    return LIBMQTT_SUCCESS;
+}
+
+int libmqtt__time_retry(struct libmqtt *mqtt, int time_retry) {
+    if (!mqtt) {
+        return LIBMQTT_ERROR_NULL;
+    }
+    mqtt->time_retry = time_retry;
     return LIBMQTT_SUCCESS;
 }
 
