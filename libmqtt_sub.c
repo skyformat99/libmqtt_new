@@ -314,6 +314,7 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_connack retur
 static void
 __suback(struct libmqtt *mqtt, void *ud, uint16_t id, int count, enum mqtt_qos *qos) {
     int i;
+    (void)mqtt;
     (void)ud;
 
     if (!quiet) printf("Subscribed (id: %d): %d", id, qos[0]);
@@ -327,6 +328,7 @@ static void
 __publish(struct libmqtt *mqtt, void *ud, uint16_t id, const char *topic, enum mqtt_qos qos, int retain, const char *payload, int length) {
     (void)ud;
     (void)id;
+    (void)qos;
 
     if (retain == 1 && no_retain == 1) return;
     if (verbose) {
@@ -362,6 +364,8 @@ __publish(struct libmqtt *mqtt, void *ud, uint16_t id, const char *topic, enum m
 
 static void
 __log(void *ud, const char *str) {
+    (void)ud;
+
     fprintf(stdout, "%s\n", str);
 }
 

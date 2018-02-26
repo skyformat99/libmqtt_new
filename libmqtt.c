@@ -273,7 +273,7 @@ const char *libmqtt__strerror(int rc) {
         "mqtt max topic/qos per subscribe or unsubscribe",
     };
 
-    if (-rc <= 0 || -rc > sizeof(__libmqtt_error_strings)/sizeof(char *))
+    if (-rc <= 0 || (size_t)-rc > sizeof(__libmqtt_error_strings)/sizeof(char *))
         return 0;
     return __libmqtt_error_strings[-rc];
 }

@@ -434,6 +434,7 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_connack retur
 
 static void
 __puback(struct libmqtt *mqtt, void *ud, uint16_t id) {
+    (void)ud;
     (void)id;
 
     if (pub_mode == MSGMODE_STDIN_LINE) {
@@ -450,6 +451,8 @@ __puback(struct libmqtt *mqtt, void *ud, uint16_t id) {
 
 static void
 __log(void *ud, const char *str) {
+    (void)ud;
+    
     fprintf(stdout, "%s\n", str);
 }
 
