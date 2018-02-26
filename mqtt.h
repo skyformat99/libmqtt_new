@@ -669,18 +669,24 @@ __parse_unsuback(struct mqtt_packet *pkt, struct mqtt_b *remaining) {
 
 static int
 __parse_pingreq(struct mqtt_packet *pkt, struct mqtt_b *remaining) {
+    (void)pkt;
+
     if (remaining->n != 0) return -1;
     return 0;
 }
 
 static int
 __parse_pingresp(struct mqtt_packet *pkt, struct mqtt_b *remaining) {
+    (void)pkt;
+
     if (remaining->n != 0) return -1;
     return 0;
 }
 
 static int
 __parse_disconnect(struct mqtt_packet *pkt, struct mqtt_b *remaining) {
+    (void)pkt;
+
     if (remaining->n != 0) return -1;
     return 0;
 }
@@ -1087,6 +1093,8 @@ __serialize_unsuback(struct mqtt_packet *pkt, struct mqtt_b *b) {
 
 static int
 __serialize_pingreq(struct mqtt_packet *pkt, struct mqtt_b *b) {
+    (void)pkt;
+
     b->s = malloc(2);
     if (!b->s) return -1;
     b->n = 0;
@@ -1097,6 +1105,8 @@ __serialize_pingreq(struct mqtt_packet *pkt, struct mqtt_b *b) {
 
 static int
 __serialize_pingresp(struct mqtt_packet *pkt, struct mqtt_b *b) {
+    (void)pkt;
+
     b->s = malloc(2);
     if (!b->s) return -1;
     b->n = 0;
@@ -1107,6 +1117,8 @@ __serialize_pingresp(struct mqtt_packet *pkt, struct mqtt_b *b) {
 
 static int
 __serialize_disconnect(struct mqtt_packet *pkt, struct mqtt_b *b) {
+    (void)pkt;
+    
     b->s = malloc(2);
     if (!b->s) return -1;
     b->n = 0;
@@ -1153,4 +1165,4 @@ mqtt__serialize(struct mqtt_packet *pkt, struct mqtt_b *b) {
     }
 }
 
-#endif // MQTT_IMPLEMENTATION
+#endif /* MQTT_IMPLEMENTATION */

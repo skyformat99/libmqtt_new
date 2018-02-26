@@ -44,12 +44,12 @@ enum libmqtt_state {
     LIBMQTT_ST_WAIT_PUBACK,
     LIBMQTT_ST_WAIT_PUBREC,
     LIBMQTT_ST_WAIT_PUBREL,
-    LIBMQTT_ST_WAIT_PUBCOMP,
+    LIBMQTT_ST_WAIT_PUBCOMP
 };
 
 enum libmqtt_dir {
     LIBMQTT_DIR_IN,
-    LIBMQTT_DIR_OUT,
+    LIBMQTT_DIR_OUT
 };
 
 struct libmqtt_pub {
