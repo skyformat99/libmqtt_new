@@ -47,7 +47,7 @@ extern "C" {
 
 enum mqtt_vsn {
     MQTT_PROTO_V3 = 0x03,
-    MQTT_PROTO_V4 = 0x04,
+    MQTT_PROTO_V4 = 0x04
 };
 
 #define MQTT_IS_VER(v) (v == MQTT_PROTO_V3 || v == MQTT_PROTO_V4)
@@ -61,7 +61,7 @@ enum mqtt_qos {
     MQTT_QOS_0 = 0x00,
     MQTT_QOS_1 = 0x01,
     MQTT_QOS_2 = 0x02,
-    MQTT_QOS_F = 0x80,
+    MQTT_QOS_F = 0x80
 };
 
 #define MQTT_IS_QOS(q) (q >= MQTT_QOS_0 && q <= MQTT_QOS_2)
@@ -81,7 +81,7 @@ enum mqtt_p_type {
     UNSUBACK    = 0x0B,
     PINGREQ     = 0x0C,
     PINGRESP    = 0x0D,
-    DISCONNECT  = 0x0E,
+    DISCONNECT  = 0x0E
 };
 
 #define MQTT_MAX_TYPE (DISCONNECT+1)
@@ -112,7 +112,7 @@ enum mqtt_connack {
     CONNACK_REFUSED_IDENTIFIER_REJECTED     = 0x02,
     CONNACK_REFUSED_SERVER_UNAVAILABLE      = 0x03,
     CONNACK_REFUSED_BAD_USERNAME_PASSWORD   = 0x04,
-    CONNACK_REFUSED_NOT_AUTHORIZED          = 0x05,
+    CONNACK_REFUSED_NOT_AUTHORIZED          = 0x05
 };
 
 #define MQTT_IS_CONNACK(c) (c >= CONNACK_ACCEPTED && c <= CONNACK_REFUSED_NOT_AUTHORIZED)
@@ -213,11 +213,17 @@ struct mqtt_p_unsuback {
     uint16_t packet_id;
 };
 
-struct mqtt_p_pingreq {};
+struct mqtt_p_pingreq {
+    void *dummy;
+};
 
-struct mqtt_p_pingresp {};
+struct mqtt_p_pingresp {
+    void *dummy;
+};
 
-struct mqtt_p_disconnect {};
+struct mqtt_p_disconnect {
+    void *dummy;
+};
 
 struct mqtt_packet {
     struct mqtt_p_header h;
@@ -243,7 +249,7 @@ struct mqtt_packet {
 enum mqtt_parser_state {
     MQTT_ST_FIXED,
     MQTT_ST_LENGTH,
-    MQTT_ST_REMAIN,
+    MQTT_ST_REMAIN
 };
 
 typedef int (*mqtt_cb)(void *, struct mqtt_packet *);

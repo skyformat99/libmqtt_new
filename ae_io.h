@@ -57,6 +57,7 @@ ae_io__read(aeEventLoop *el, int fd, void *privdata, int mask) {
     struct ae_io *io;
     int nread;
     char buff[4096];
+    (void)mask;
 
     io = (struct ae_io *)privdata;
 
@@ -75,6 +76,8 @@ ae_io__read(aeEventLoop *el, int fd, void *privdata, int mask) {
 static int
 ae_io__update(aeEventLoop *el, long long id, void *privdata) {
     struct ae_io *io;
+    (void)el;
+    (void)id;
 
     io = (struct ae_io *)privdata;
 
